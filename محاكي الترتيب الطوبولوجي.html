@@ -1,0 +1,556 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>محاكي الترتيب الطوبولوجي</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: input strip on top, then graph + controls beside code + state; stacks to one column on phones. */
+:root{
+  --bg:#f2f5f9; --surface:#ffffff; --surface-2:#edf1f6; --fg:#14202e; --muted:#566779; --line:#d5dde8;
+  --accent:#2b57e6; --accent-fg:#ffffff; --accent-soft:#e3eaff;
+  --visit:#9a6410; --visit-fill:#fdebc4; --visit-line:#e1a21f;
+  --done:#1a7f55; --done-fill:#d4f0e2;
+  --bad:#c93434; --bad-fill:#fbdada;
+  --edge:#98a7b8; --edge-strong:#44566c;
+  --code-bg:#f6f8fb; --hl:#dce6ff; --tk:#7a35e6; --tn:#a8520b; --tc:#6b7c8f;
+  --font:"IBM Plex Sans Arabic","Segoe UI",Tahoma,system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0b121b; --surface:#121c29; --surface-2:#18263a; --fg:#e6edf5; --muted:#93a4b8; --line:#243448;
+    --accent:#7d9eff; --accent-fg:#0b121b; --accent-soft:#1c2c58;
+    --visit:#f2b840; --visit-fill:#4a3811; --visit-line:#c8901f;
+    --done:#4fd08f; --done-fill:#12412d;
+    --bad:#ff7b7b; --bad-fill:#4a1c1c;
+    --edge:#4a5d74; --edge-strong:#9fb2c8;
+    --code-bg:#0e1722; --hl:#20346a; --tk:#c4a3ff; --tn:#f2b840; --tc:#7d8ea3;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0b121b; --surface:#121c29; --surface-2:#18263a; --fg:#e6edf5; --muted:#93a4b8; --line:#243448;
+  --accent:#7d9eff; --accent-fg:#0b121b; --accent-soft:#1c2c58;
+  --visit:#f2b840; --visit-fill:#4a3811; --visit-line:#c8901f;
+  --done:#4fd08f; --done-fill:#12412d;
+  --bad:#ff7b7b; --bad-fill:#4a1c1c;
+  --edge:#4a5d74; --edge-strong:#9fb2c8;
+  --code-bg:#0e1722; --hl:#20346a; --tk:#c4a3ff; --tn:#f2b840; --tc:#7d8ea3;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{
+  background:var(--bg); color:var(--fg); font-family:var(--font); font-size:15px; line-height:1.65;
+  padding-block:24px 40px;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));
+  padding-right:max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap{max-width:1180px; margin:0 auto; display:flex; flex-direction:column; gap:16px}
+h1{font-size:clamp(1.45rem,3.2vw,1.95rem); line-height:1.3; margin:0 0 4px; font-weight:700; text-wrap:balance}
+.sub{margin:0; color:var(--muted); max-width:68ch}
+.card{background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:16px; min-width:0}
+.lbl{font-size:13px; font-weight:600; color:var(--muted); margin:0 0 8px}
+.hint{font-size:13.5px; color:var(--muted); margin:0 0 12px}
+code{font-family:var(--mono); font-size:.9em; direction:ltr; unicode-bidi:isolate; background:var(--surface-2); padding:1px 6px; border-radius:4px}
+
+/* input strip */
+.input-card{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:20px; align-items:start}
+.chips{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px}
+.btn{
+  font:inherit; font-weight:600; font-size:14px; min-height:40px; padding:6px 16px; border-radius:8px;
+  border:1px solid var(--line); background:var(--surface); color:var(--fg); cursor:pointer;
+}
+.btn:hover:not(:disabled){background:var(--surface-2)}
+.btn:disabled{opacity:.45; cursor:default}
+.btn.primary{background:var(--accent); border-color:var(--accent); color:var(--accent-fg)}
+.btn.primary:hover:not(:disabled){background:var(--accent); filter:brightness(1.08)}
+.btn.sm{min-height:34px; padding:3px 12px; font-weight:500}
+.btn:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+textarea{
+  width:100%; min-height:150px; resize:vertical; direction:ltr; text-align:left;
+  font-family:var(--mono); font-size:14px; line-height:1.6; padding:10px 12px;
+  background:var(--code-bg); color:var(--fg); border:1px solid var(--line); border-radius:8px;
+}
+.err{color:var(--bad); font-size:13.5px; margin:8px 0 0; min-height:1.5em}
+
+/* main grid */
+.main{display:grid; grid-template-columns:minmax(0,1.2fr) minmax(0,1fr); gap:16px; align-items:start}
+.col{display:flex; flex-direction:column; gap:16px; min-width:0}
+.graph-card svg{display:block; width:100%; height:auto; max-height:540px}
+.legend{display:flex; flex-wrap:wrap; gap:6px 16px; font-size:13px; color:var(--muted); margin:6px 0 14px}
+.legend span{display:inline-flex; align-items:center; gap:6px}
+.sw{width:14px; height:14px; border-radius:50%; border:2px solid var(--edge-strong); background:var(--surface)}
+.sw.v{background:var(--visit-fill); border-color:var(--visit-line)}
+.sw.d{background:var(--done-fill); border-color:var(--done)}
+.ew{width:22px; height:0; border-top:3px solid var(--edge-strong)}
+.ew.b{border-top-color:var(--bad)}
+.ew.s{border-top:3px dashed var(--edge)}
+.meta{font-size:13px; color:var(--muted); margin:0 0 6px; font-variant-numeric:tabular-nums}
+.note{background:var(--surface-2); border-radius:8px; padding:10px 14px; min-height:84px}
+.controls{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:14px}
+.scrub{display:flex; align-items:center; gap:12px; margin-top:12px; font-size:13px; color:var(--muted)}
+.scrub input[type=range]{flex:1; min-width:0; accent-color:var(--accent)}
+.speed{display:flex; align-items:center; gap:8px; font-size:13px; color:var(--muted); margin-inline-start:auto}
+.speed input{width:110px; accent-color:var(--accent)}
+.keys{font-size:12.5px; color:var(--muted); margin:10px 0 0}
+
+/* graph */
+.edge{fill:none; stroke:var(--edge); stroke-width:1.8; transition:stroke .2s}
+.edge.e-active{stroke:var(--accent); stroke-width:3.2}
+.edge.e-tree{stroke:var(--edge-strong); stroke-width:2.3}
+.edge.e-back{stroke:var(--bad); stroke-width:2.9}
+.edge.e-skip{stroke:var(--edge); stroke-dasharray:5 4}
+.ah-def,.ah-skip{fill:var(--edge)} .ah-active{fill:var(--accent)} .ah-tree{fill:var(--edge-strong)} .ah-back{fill:var(--bad)}
+.node .body{fill:var(--surface); stroke:var(--edge-strong); stroke-width:2; transition:fill .2s, stroke .2s}
+.node.n2 .body{fill:var(--visit-fill); stroke:var(--visit-line)}
+.node.n1 .body{fill:var(--done-fill); stroke:var(--done)}
+.node text{fill:var(--fg); font-family:var(--mono); font-size:14px; font-weight:500; text-anchor:middle}
+.node .ring,.node .tring{fill:none; display:none}
+.node.cur .ring{display:inline; stroke:var(--accent); stroke-width:3}
+.node.tgt .tring{display:inline; stroke:var(--accent); stroke-width:2; stroke-dasharray:4 3}
+
+/* code */
+.code{
+  direction:ltr; text-align:left; font-family:var(--mono); font-size:13px; line-height:22px;
+  background:var(--code-bg); border-radius:8px; max-height:420px; overflow:auto; position:relative; padding:8px 0;
+}
+.code-in{display:inline-block; min-width:100%}
+.ln{display:flex; white-space:pre; border-left:3px solid transparent; padding-right:14px}
+.ln.on{background:var(--hl); border-left-color:var(--accent)}
+.no{flex:none; width:38px; padding-right:12px; text-align:right; color:var(--muted); user-select:none}
+.tk{color:var(--tk)} .tn{color:var(--tn)} .tc{color:var(--tc)}
+
+/* state */
+.blk{margin-bottom:14px}
+.blk:last-child{margin-bottom:0}
+.vis{display:grid; grid-template-columns:repeat(auto-fill,minmax(42px,1fr)); gap:6px; direction:ltr}
+.vc{border:1px solid var(--line); border-radius:6px; text-align:center; padding:3px 0 4px; font-family:var(--mono); font-size:14px; line-height:1.3}
+.vc small{display:block; font-size:11px; color:var(--muted)}
+.vc.s2{background:var(--visit-fill); border-color:var(--visit-line)}
+.vc.s1{background:var(--done-fill); border-color:var(--done)}
+.row{display:flex; flex-wrap:wrap; gap:6px; direction:ltr; justify-content:flex-end; align-items:center; min-height:32px}
+.chip{font-family:var(--mono); font-size:13px; padding:2px 10px; border-radius:6px; background:var(--surface-2); border:1px solid var(--line)}
+.chip.top{border-color:var(--accent); background:var(--accent-soft)}
+.empty{font-size:13px; color:var(--muted)}
+.flags{display:flex; flex-wrap:wrap; gap:8px; font-size:13px}
+.flag{display:inline-flex; gap:6px; align-items:center; padding:3px 10px; border-radius:6px; background:var(--surface-2)}
+.flag.bad{background:var(--bad-fill); color:var(--bad)}
+.out{font-family:var(--mono); direction:ltr; text-align:left; padding:10px 12px; border-radius:8px; background:var(--code-bg); border:1px solid var(--line); min-height:44px; word-break:break-word}
+.out.bad{color:var(--bad); border-color:var(--bad)}
+.out.ok{border-color:var(--done)}
+
+@media (max-width:900px){
+  .main,.input-card{grid-template-columns:minmax(0,1fr)}
+  .speed{margin-inline-start:0; width:100%}
+}
+@media (prefers-reduced-motion: reduce){*{transition:none !important}}
+</style>
+
+<div class="wrap" dir="rtl">
+  <header>
+    <h1>محاكي الترتيب الطوبولوجي</h1>
+    <p class="sub">تابع كودك خطوة بخطوة: كيف تتغير حالة كل عقدة في <code>vis</code> أثناء الـ DFS، ومتى يكتشف الكود الحلقة، وكيف يخرج ترتيب <code>topo</code> النهائي.</p>
+  </header>
+
+  <section class="card input-card" aria-label="المدخلات">
+    <div>
+      <p class="lbl">المدخلات (نفس تنسيق <code>cin</code> في البرنامج)</p>
+      <p class="hint">السطر الأول <code>n m</code>، ثم كل حافة <code>x y</code> تعني أن <code>x</code> يسبق <code>y</code>. الحد الأقصى 24 عقدة.</p>
+      <div class="chips" id="presets"></div>
+      <button class="btn primary" id="apply" type="button">تطبيق وإعادة التشغيل</button>
+      <p class="err" id="err" role="alert"></p>
+    </div>
+    <div>
+      <label class="lbl" for="inp">النص المُدخل</label>
+      <textarea id="inp" spellcheck="false" aria-describedby="err"></textarea>
+    </div>
+  </section>
+
+  <div class="main">
+    <div class="col">
+      <section class="card graph-card" aria-label="الرسم البياني">
+        <svg id="svg" viewBox="0 0 600 470" role="img" aria-label="الرسم البياني الموجّه"></svg>
+        <div class="legend" aria-hidden="true">
+          <span><i class="sw"></i>لم تُزَر <code>vis=0</code></span>
+          <span><i class="sw v"></i>قيد المعالجة <code>vis=2</code></span>
+          <span><i class="sw d"></i>انتهت <code>vis=1</code></span>
+          <span><i class="ew"></i>حافة شجرة</span>
+          <span><i class="ew b"></i>حافة رجوع (حلقة)</span>
+          <span><i class="ew s"></i>حافة متجاهلة</span>
+        </div>
+        <p class="meta" id="meta"></p>
+        <div class="note" id="note" aria-live="polite"></div>
+        <div class="scrub">
+          <span>البداية</span>
+          <input type="range" id="scrub" min="0" max="0" value="0" aria-label="موضع الخطوة">
+          <span>النهاية</span>
+        </div>
+        <div class="controls">
+          <button class="btn" id="reset" type="button">إعادة</button>
+          <button class="btn" id="prev" type="button">السابق</button>
+          <button class="btn primary" id="play" type="button">تشغيل</button>
+          <button class="btn" id="next" type="button">التالي</button>
+          <label class="speed">السرعة <input type="range" id="speed" min="1" max="10" value="5"></label>
+        </div>
+        <p class="keys">اختصارات: السهم الأيسر للتالي، السهم الأيمن للسابق، المسافة للتشغيل والإيقاف.</p>
+      </section>
+    </div>
+
+    <div class="col">
+      <section class="card" aria-label="الكود">
+        <p class="lbl">الكود <span style="font-weight:400">· دالة <code>DFS</code> والجزء الرئيسي من <code>solve()</code></span></p>
+        <div class="code" id="code"></div>
+      </section>
+      <section class="card" aria-label="حالة البرنامج">
+        <div class="blk"><p class="lbl">المصفوفة <code>vis[]</code></p><div class="vis" id="visArr"></div></div>
+        <div class="blk"><p class="lbl">مكدس الاستدعاءات</p><div class="row" id="stack"></div></div>
+        <div class="blk"><p class="lbl" id="topoLbl">المتجه <code>topo</code></p><div class="row" id="topo"></div></div>
+        <div class="blk"><div class="flags" id="flags"></div></div>
+        <div class="blk"><p class="lbl">ناتج البرنامج</p><div class="out" id="out"></div></div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script>
+/*SIM-START*/
+var LN = {head:0, setVis:1, each:2, ifBack:3, setCyl:4, ifDone:7, call:10, push:12, setDone:13,
+          outerIf:18, num:19, outerCall:20, ifCyl:23, printNeg:24, reverse:27, vout:28};
+
+function c(t){ return '<code>' + t + '</code>'; }
+
+function parseInput(text){
+  var tokens = text.trim().split(/\s+/).filter(Boolean);
+  if (tokens.length < 2) return {error:'اكتب n و m في السطر الأول.'};
+  var nums = tokens.map(Number), i;
+  for (i = 0; i < nums.length; i++) {
+    if (!Number.isInteger(nums[i])) return {error:'المدخلات يجب أن تكون أعدادًا صحيحة فقط.'};
+  }
+  var n = nums[0], m = nums[1];
+  if (n < 1 || n > 24) return {error:'عدد العقد n يجب أن يكون بين 1 و 24 ليبقى الرسم واضحًا.'};
+  if (m < 0 || m > 60) return {error:'عدد الحواف m يجب أن يكون بين 0 و 60.'};
+  if (nums.length !== 2 + 2 * m) {
+    return {error:'عدد الأرقام لا يطابق m: المطلوب ' + (2 * m) + ' رقمًا بعد n و m، والموجود ' + (nums.length - 2) + '.'};
+  }
+  var edges = [];
+  for (var j = 0; j < m; j++) {
+    var x = nums[2 + 2 * j], y = nums[3 + 2 * j];
+    if (x < 1 || x > n || y < 1 || y > n) {
+      return {error:'الحافة رقم ' + (j + 1) + ' (' + x + ' ' + y + ') خارج النطاق من 1 إلى ' + n + '.'};
+    }
+    edges.push({from:x, to:y});
+  }
+  return {n:n, m:m, edges:edges};
+}
+
+function simulate(g){
+  var n = g.n, adj = [], i;
+  for (i = 0; i <= n; i++) adj.push([]);
+  g.edges.forEach(function(e, idx){ adj[e.from].push({to:e.to, idx:idx}); });
+  var vis = [], stack = [], topo = [], cyl = false, num = 0, es = {}, steps = [];
+  for (i = 0; i <= n; i++) vis.push(0);
+
+  function snap(line, note, extra){
+    var s = {line:line, note:note, vis:vis.slice(1), stack:stack.slice(), topo:topo.slice(),
+             cyl:cyl, num:num, es:JSON.parse(JSON.stringify(es)), cur:null, tgt:null, edge:null, out:null, rev:false};
+    if (extra) for (var k in extra) s[k] = extra[k];
+    steps.push(s);
+  }
+
+  function dfs(u){
+    vis[u] = 2;
+    snap(LN.setVis, c('vis[' + u + '] = 2') + ': العقدة ' + u + ' صارت قيد المعالجة (داخل المسار الحالي).', {cur:u});
+    adj[u].forEach(function(nb){
+      var k = nb.to, idx = nb.idx;
+      snap(LN.each, 'نفحص الحافة ' + c(u + ' → ' + k) + ' (الجار ' + k + ').', {cur:u, tgt:k, edge:idx});
+      if (vis[k] === 2) {
+        snap(LN.ifBack, c('vis[' + k + '] == 2') + ': الجار ' + k + ' ما زال قيد المعالجة، أي عدنا إلى عقدة من المسار الحالي، وهذه حلقة.', {cur:u, tgt:k, edge:idx});
+        es[idx] = 'back'; cyl = true;
+        snap(LN.setCyl, c('cyl = true') + ' ثم ' + c('continue') + ': الحافة ' + c(u + ' → ' + k) + ' حافة رجوع تغلق الحلقة.', {cur:u, tgt:k, edge:idx});
+      } else if (vis[k] === 1) {
+        es[idx] = 'skip';
+        snap(LN.ifDone, c('vis[' + k + '] == 1') + ': العقدة ' + k + ' انتهت معالجتها سابقًا، نتجاهل الحافة بـ ' + c('continue') + '.', {cur:u, tgt:k, edge:idx});
+      } else {
+        es[idx] = 'tree';
+        stack.push(k);
+        snap(LN.call, c('vis[' + k + '] == 0') + ': عقدة جديدة، نستدعي ' + c('DFS(' + k + ')') + '.', {cur:k, edge:idx});
+        dfs(k);
+      }
+    });
+    topo.push(u);
+    snap(LN.push, 'لا جيران متبقية للعقدة ' + u + ': ' + c('topo.push_back(' + u + ')') + '.', {cur:u});
+    vis[u] = 1;
+    snap(LN.setDone, c('vis[' + u + '] = 1') + ': انتهت معالجة العقدة ' + u + ' ونرجع من ' + c('DFS(' + u + ')') + '.', {cur:u});
+    stack.pop();
+  }
+
+  snap(-1, 'الحالة الابتدائية: كل العقد ' + c('vis = 0') + ' (لم تُزَر بعد)، و ' + c('topo') + ' فارغ، و ' + c('cyl = false') + '.');
+  for (i = 0; i < n; i++) {
+    var v = i + 1;
+    if (vis[v] === 0) {
+      snap(LN.outerIf, 'الحلقة الخارجية عند ' + c('i + 1 = ' + v) + ': ' + c('vis[' + v + '] == 0') + '، العقدة لم تُزَر بعد.', {cur:v});
+      num++;
+      snap(LN.num, c('num++') + ' فيصبح ' + c('num = ' + num) + ': هذه بداية شجرة DFS جديدة.', {cur:v});
+      stack.push(v);
+      snap(LN.outerCall, 'نستدعي ' + c('DFS(' + v + ')') + ' فتدخل العقدة ' + v + ' إلى مكدس الاستدعاءات.', {cur:v});
+      dfs(v);
+    } else {
+      snap(LN.outerIf, c('vis[' + v + '] == 1') + ': العقدة ' + v + ' عولجت من قبل، ننتقل إلى التالية.', {cur:v});
+    }
+  }
+  if (cyl) {
+    snap(LN.ifCyl, c('cyl') + ' تساوي ' + c('true') + ': توجد حلقة، فلا يوجد ترتيب طوبولوجي.');
+    snap(LN.printNeg, 'يطبع البرنامج ' + c('-1') + ' وينتهي.', {out:'-1'});
+  } else {
+    snap(LN.ifCyl, c('cyl') + ' تساوي ' + c('false') + ': الرسم بلا حلقات، نكمل إلى الترتيب.');
+    var rev = topo.slice().reverse();
+    snap(LN.reverse, c('reverse(all(topo))') + ': نعكس ترتيب الانتهاء لنحصل على الترتيب الطوبولوجي.', {rev:true, topo:rev});
+    snap(LN.vout, 'الطباعة: لكل حافة ' + c('x → y') + ' تظهر العقدة x قبل العقدة y.', {rev:true, topo:rev, out:rev.join(' ')});
+  }
+  return steps;
+}
+/*SIM-END*/
+
+(function(){
+  'use strict';
+  var CODE = [
+    'void DFS(ll u) {',
+    '    vis[u] = 2;',
+    '    for (auto k: adj[u]) {',
+    '        if (vis[k] == 2) {',
+    '            cyl = true;',
+    '            continue;',
+    '        }',
+    '        if (vis[k] == 1) {',
+    '            continue;',
+    '        }',
+    '        DFS(k);',
+    '    }',
+    '    topo.push_back(u);',
+    '    vis[u] = 1;',
+    '}',
+    '',
+    '// inside solve()',
+    'for (int i = 0; i < n; i++) {',
+    '    if (vis[i + 1] == 0) {',
+    '        num++;',
+    '        DFS(i + 1);',
+    '    }',
+    '}',
+    'if (cyl) {',
+    '    cout << -1;',
+    '    return;',
+    '}',
+    'reverse(all(topo));',
+    'vout(topo)'
+  ];
+
+  var PRESETS = [
+    {name:'ترتيب بسيط', text:'6 7\n1 2\n1 3\n2 4\n3 4\n4 5\n3 6\n6 5'},
+    {name:'فيه حلقة', text:'5 6\n1 2\n2 3\n3 4\n4 2\n4 5\n1 5'},
+    {name:'عدة مكونات', text:'7 5\n1 2\n2 3\n4 5\n6 5\n7 6'},
+    {name:'رسم أكبر', text:'8 10\n1 2\n1 3\n2 4\n2 5\n3 5\n3 6\n4 7\n5 7\n6 8\n7 8'}
+  ];
+
+  var $ = function(id){ return document.getElementById(id); };
+  var NS = 'http://www.w3.org/2000/svg';
+  var steps = [], idx = 0, graph = null, nodeEls = [], edgeEls = [], edgesG = null;
+  var playing = false, timer = null;
+
+  function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function hl(line){
+    return esc(line).replace(/(\/\/.*$)|(\b(?:void|for|if|continue|auto|ll|int|true|return)\b)|(\b\d+\b)/g,
+      function(m, cm, kw){ return '<span class="' + (cm ? 'tc' : kw ? 'tk' : 'tn') + '">' + m + '</span>'; });
+  }
+  function el(name, attrs){
+    var e = document.createElementNS(NS, name);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    return e;
+  }
+
+  /* code panel */
+  (function buildCode(){
+    var h = '<div class="code-in">';
+    CODE.forEach(function(l, i){
+      h += '<div class="ln" data-i="' + i + '"><span class="no">' + (i + 1) + '</span><span class="src">' + (l ? hl(l) : '&nbsp;') + '</span></div>';
+    });
+    $('code').innerHTML = h + '</div>';
+  })();
+
+  /* graph */
+  function buildGraph(g){
+    var svg = $('svg');
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    var n = g.n, cx = 300, cy = 235;
+    var R = n === 1 ? 0 : Math.min(185, 80 + n * 20);
+    var nr = n <= 10 ? 22 : n <= 16 ? 19 : 16;
+    var pos = [null], i;
+    for (i = 0; i < n; i++) {
+      var a = -Math.PI / 2 + 2 * Math.PI * i / n;
+      pos.push({x: cx + R * Math.cos(a), y: cy + R * Math.sin(a)});
+    }
+    var defs = el('defs', {});
+    ['def','active','tree','back','skip'].forEach(function(s){
+      var m = el('marker', {id:'ah-' + s, viewBox:'0 0 10 10', refX:'10', refY:'5', markerWidth:'11', markerHeight:'11', markerUnits:'userSpaceOnUse', orient:'auto'});
+      m.appendChild(el('path', {d:'M0,0 L10,5 L0,10 z', 'class':'ah-' + s}));
+      defs.appendChild(m);
+    });
+    svg.appendChild(defs);
+    edgesG = el('g', {});
+    svg.appendChild(edgesG);
+    edgeEls = [];
+    g.edges.forEach(function(e){
+      var p = el('path', {d: edgePath(pos[e.from], pos[e.to], e.from === e.to, nr, cx, cy, R), 'class':'edge e-def'});
+      p.setAttribute('marker-end', 'url(#ah-def)');
+      edgesG.appendChild(p);
+      edgeEls.push(p);
+    });
+    nodeEls = [null];
+    for (i = 1; i <= n; i++) {
+      var gr = el('g', {'class':'node n0', transform:'translate(' + pos[i].x.toFixed(1) + ',' + pos[i].y.toFixed(1) + ')'});
+      gr.appendChild(el('circle', {'class':'tring', r:nr + 9}));
+      gr.appendChild(el('circle', {'class':'ring', r:nr + 5}));
+      gr.appendChild(el('circle', {'class':'body', r:nr}));
+      var t = el('text', {dy:'.35em'});
+      t.textContent = i;
+      gr.appendChild(t);
+      svg.appendChild(gr);
+      nodeEls.push(gr);
+    }
+  }
+
+  function edgePath(a, b, self, nr, cx, cy, R){
+    var f = function(v){ return v.toFixed(1); };
+    if (self) {
+      var ox = a.x - cx, oy = a.y - cy, d0 = Math.hypot(ox, oy);
+      if (d0 < 1) { ox = 0; oy = -1; } else { ox /= d0; oy /= d0; }
+      var px = -oy, py = ox, cs = Math.cos(Math.PI / 6), sn = Math.sin(Math.PI / 6);
+      var sx = a.x + (ox * cs - px * sn) * nr, sy = a.y + (oy * cs - py * sn) * nr;
+      var ex = a.x + (ox * cs + px * sn) * (nr + 3), ey = a.y + (oy * cs + py * sn) * (nr + 3);
+      var c1x = a.x + ox * (nr + 48) - px * 30, c1y = a.y + oy * (nr + 48) - py * 30;
+      var c2x = a.x + ox * (nr + 48) + px * 30, c2y = a.y + oy * (nr + 48) + py * 30;
+      return 'M' + f(sx) + ',' + f(sy) + ' C' + f(c1x) + ',' + f(c1y) + ' ' + f(c2x) + ',' + f(c2y) + ' ' + f(ex) + ',' + f(ey);
+    }
+    var dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy);
+    var mx = (a.x + b.x) / 2 + (-dy / d) * 0.16 * d, my = (a.y + b.y) / 2 + (dx / d) * 0.16 * d;
+    var v1x = mx - a.x, v1y = my - a.y, l1 = Math.hypot(v1x, v1y);
+    var v2x = b.x - mx, v2y = b.y - my, l2 = Math.hypot(v2x, v2y);
+    var sx2 = a.x + v1x / l1 * nr, sy2 = a.y + v1y / l1 * nr;
+    var ex2 = b.x - v2x / l2 * (nr + 3), ey2 = b.y - v2y / l2 * (nr + 3);
+    return 'M' + f(sx2) + ',' + f(sy2) + ' Q' + f(mx) + ',' + f(my) + ' ' + f(ex2) + ',' + f(ey2);
+  }
+
+  /* painting one step */
+  function paint(){
+    var s = steps[idx], i;
+    for (i = 1; i < nodeEls.length; i++) {
+      nodeEls[i].setAttribute('class', 'node n' + s.vis[i - 1] + (s.cur === i ? ' cur' : '') + (s.tgt === i ? ' tgt' : ''));
+    }
+    edgeEls.forEach(function(p, k){
+      var st = s.edge === k ? 'active' : (s.es[k] || 'def');
+      p.setAttribute('class', 'edge e-' + st);
+      p.setAttribute('marker-end', 'url(#ah-' + st + ')');
+      if (st === 'active') edgesG.appendChild(p);
+    });
+
+    $('meta').textContent = 'الخطوة ' + (idx + 1) + ' من ' + steps.length + (s.line >= 0 ? ' · السطر ' + (s.line + 1) : '');
+    $('note').innerHTML = s.note;
+    $('scrub').max = steps.length - 1;
+    $('scrub').value = idx;
+    $('prev').disabled = idx === 0;
+    $('next').disabled = idx === steps.length - 1;
+
+    var code = $('code'), lines = code.querySelectorAll('.ln'), on = null;
+    for (i = 0; i < lines.length; i++) {
+      var hit = i === s.line;
+      lines[i].classList.toggle('on', hit);
+      if (hit) on = lines[i];
+    }
+    if (on) code.scrollTop = on.offsetTop - code.clientHeight / 2 + on.offsetHeight / 2;
+
+    var vh = '';
+    s.vis.forEach(function(v, k){ vh += '<div class="vc s' + v + '"><small>' + (k + 1) + '</small>' + v + '</div>'; });
+    $('visArr').innerHTML = vh;
+
+    var sh = '';
+    s.stack.forEach(function(u, k){ sh += '<span class="chip' + (k === s.stack.length - 1 ? ' top' : '') + '">DFS(' + u + ')</span>'; });
+    $('stack').innerHTML = sh || '<span class="empty">فارغ</span>';
+
+    var th = '';
+    s.topo.forEach(function(u){ th += '<span class="chip">' + u + '</span>'; });
+    $('topo').innerHTML = th || '<span class="empty">فارغ</span>';
+    $('topoLbl').innerHTML = s.rev ? 'المتجه ' + c('topo') + ' بعد ' + c('reverse') : 'المتجه ' + c('topo') + ' (ترتيب الانتهاء)';
+
+    $('flags').innerHTML = '<span class="flag' + (s.cyl ? ' bad' : '') + '"><code>cyl</code> = ' + s.cyl + '</span>' +
+                           '<span class="flag"><code>num</code> = ' + s.num + '</span>';
+
+    var out = $('out');
+    out.className = 'out' + (s.out === '-1' ? ' bad' : s.out ? ' ok' : '');
+    out.textContent = s.out === null ? '—' : s.out;
+  }
+
+  /* playback */
+  function delay(){ return 1200 - Number($('speed').value) * 100; }
+  function setPlaying(p){
+    playing = p;
+    $('play').textContent = p ? 'إيقاف' : 'تشغيل';
+    if (!p) { clearTimeout(timer); timer = null; }
+  }
+  function tick(){
+    timer = setTimeout(function(){
+      if (idx < steps.length - 1) { idx++; paint(); tick(); } else setPlaying(false);
+    }, delay());
+  }
+  function togglePlay(){
+    if (playing) { setPlaying(false); return; }
+    if (idx >= steps.length - 1) { idx = 0; paint(); }
+    setPlaying(true);
+    tick();
+  }
+  function go(to){
+    setPlaying(false);
+    idx = Math.max(0, Math.min(steps.length - 1, to));
+    paint();
+  }
+
+  /* load input */
+  function load(text){
+    var g = parseInput(text);
+    if (g.error) { $('err').textContent = g.error; return false; }
+    $('err').textContent = '';
+    setPlaying(false);
+    graph = g;
+    steps = simulate(g);
+    idx = 0;
+    buildGraph(g);
+    paint();
+    return true;
+  }
+
+  PRESETS.forEach(function(p){
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'btn sm'; b.textContent = p.name;
+    b.addEventListener('click', function(){ $('inp').value = p.text; load(p.text); });
+    $('presets').appendChild(b);
+  });
+
+  $('apply').addEventListener('click', function(){ load($('inp').value); });
+  $('reset').addEventListener('click', function(){ go(0); });
+  $('prev').addEventListener('click', function(){ go(idx - 1); });
+  $('next').addEventListener('click', function(){ go(idx + 1); });
+  $('play').addEventListener('click', togglePlay);
+  $('scrub').addEventListener('input', function(){ go(Number(this.value)); });
+
+  document.addEventListener('keydown', function(e){
+    var tag = e.target && e.target.tagName;
+    if (tag === 'TEXTAREA' || tag === 'INPUT' || tag === 'BUTTON' || tag === 'SELECT') return;
+    if (e.key === 'ArrowLeft') { e.preventDefault(); go(idx + 1); }
+    else if (e.key === 'ArrowRight') { e.preventDefault(); go(idx - 1); }
+    else if (e.key === ' ') { e.preventDefault(); togglePlay(); }
+  });
+
+  $('inp').value = PRESETS[0].text;
+  load(PRESETS[0].text);
+})();
+</script>
+
+</body></html>
